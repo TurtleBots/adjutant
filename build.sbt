@@ -10,3 +10,5 @@ assemblyMergeStrategy in assembly := {
   case PathList("org", "slf4j", _ @ _*) => MergeStrategy.first
   case x => (assemblyMergeStrategy in assembly).value(x)
 }
+
+testFrameworks += new TestFramework("munit.Framework")
