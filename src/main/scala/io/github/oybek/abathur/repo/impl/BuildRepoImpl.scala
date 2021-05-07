@@ -1,8 +1,9 @@
 package io.github.oybek.abathur.repo.impl
 
+import cats.data.NonEmptySeq
 import enumeratum.SlickEnumSupport
-import io.github.oybek.abathur.repo.BuildRepo
 import io.github.oybek.abathur.model.{Build, BuildType, MatchUp}
+import io.github.oybek.abathur.repo.BuildRepo
 import slick.ast.BaseTypedType
 import slick.jdbc.PostgresProfile
 import slick.jdbc.PostgresProfile.api._
@@ -16,9 +17,13 @@ class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRe
       .result
       .headOption
 
-  override def get(matchUp: MatchUp): DBIO[Seq[Build]] =
+  override def get(matchUpOpt: Option[MatchUp],
+                   buildTypeOpt: Option[BuildType],
+                   ids: Option[NonEmptySeq[Int]]): DBIO[Seq[Build]] =
     buildTable
-      .filter(_.matchUp === matchUp.bind)
+      .filterOpt(ids)((build, ids) => build.id inSetBind ids.toSeq)
+      .filterOpt(matchUpOpt)((build, matchUp) => build.matchUp === matchUp.bind)
+      .filterOpt(buildTypeOpt)((build, buildType) => build.ttype === buildType.bind)
       .result
 
   override def add(build: Build): DBIO[Int] =

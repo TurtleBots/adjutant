@@ -1,11 +1,12 @@
 package io.github.oybek.abathur.repo.impl
 
 import cats.effect.unsafe.implicits.global
-import com.dimafeng.testcontainers.{ContainerDef, PostgreSQLContainer}
+import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.munit.TestContainerForAll
 import io.github.oybek.abathur.Main
 import io.github.oybek.abathur.config.Config.DB
-import io.github.oybek.abathur.model.Donors
+import io.github.oybek.abathur.model.BuildType.Cheese
+import io.github.oybek.abathur.model.{Build, Donors}
 import munit.FunSuite
 import slick.jdbc.PostgresProfile.api.Database
 
@@ -13,27 +14,25 @@ import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 
 class BuildRepoImplSpec extends FunSuite with TestContainerForAll with Donors {
-  override val containerDef: ContainerDef = PostgreSQLContainer.Def()
+  override val containerDef: PostgreSQLContainer.Def = PostgreSQLContainer.Def()
   implicit val executionContext: ExecutionContext =
     ExecutionContext.fromExecutor(
       Executors.newFixedThreadPool(10)
     )
 
   override def afterContainersStart(container: containerDef.Container): Unit = {
-    val postgresContainer = container.asInstanceOf[PostgreSQLContainer]
     Main.migrate(
       DB(
-        url = postgresContainer.jdbcUrl,
-        driver = postgresContainer.driverClassName,
-        user = postgresContainer.username,
-        password = postgresContainer.password
+        url = container.jdbcUrl,
+        driver = container.driverClassName,
+        user = container.username,
+        password = container.password
       )
     ).unsafeRunSync()
   }
 
   test("create and retrieve the build") {
-    withContainers { container =>
-      val postgresContainer = container.asInstanceOf[PostgreSQLContainer]
+    withContainers { postgresContainer =>
       val db =
         Database.forURL(
           url = postgresContainer.jdbcUrl,
@@ -50,8 +49,11 @@ class BuildRepoImplSpec extends FunSuite with TestContainerForAll with Donors {
           build <- buildRepoImpl.get(generatedId)
           _ = assertEquals(build, Some(buildDonor.copy(id = generatedId)))
 
-          build <- buildRepoImpl.get(buildDonor.matchUp)
-          _ = assertEquals(build, Seq(buildDonor.copy(id = generatedId)))
+          builds <- buildRepoImpl.get(Some(buildDonor.matchUp), None, None)
+          _ = assertEquals(builds, Seq(buildDonor.copy(id = generatedId)))
+
+          builds <- buildRepoImpl.get(Some(buildDonor.matchUp), Some(Cheese), None)
+          _ = assertEquals(builds, Seq.empty[Build])
 
           _ <- buildRepoImpl.thumbUp(generatedId)
           _ <- buildRepoImpl.thumbDown(generatedId)

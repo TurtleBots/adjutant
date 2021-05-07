@@ -1,10 +1,13 @@
 package io.github.oybek.abathur.repo
 
-import io.github.oybek.abathur.model.{Build, MatchUp}
+import cats.data.NonEmptySeq
+import io.github.oybek.abathur.model.{Build, BuildType, MatchUp}
 
 trait BuildRepo[DB[_]] {
   def get(id: Int): DB[Option[Build]]
-  def get(matchUp: MatchUp): DB[Seq[Build]]
+  def get(matchUp: Option[MatchUp],
+          buildType: Option[BuildType],
+          ids: Option[NonEmptySeq[Int]]): DB[Seq[Build]]
 
   def add(build: Build): DB[Int]
 
