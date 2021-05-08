@@ -1,6 +1,5 @@
 package io.github.oybek.abathur.repo.impl
 
-import cats.implicits.catsSyntaxOptionId
 import io.github.oybek.abathur.model.BuildType.Allin
 import io.github.oybek.abathur.model.MatchUp.ZvT
 import io.github.oybek.abathur.model.UnitType.{Ravager, Roach, Ultralisk}
@@ -43,7 +42,7 @@ class CommandRepoImplSpec extends FunSuite with PostgresSpec with Donors {
     6*60+12,
     Allin,
     "4.11.0",
-    "Railgan".some,
+    None,
     0,
     0,
     Option.empty[String])

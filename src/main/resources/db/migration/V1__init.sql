@@ -21,7 +21,7 @@ create table build (
   duration integer not null,
   ttype varchar references build_type(id),
   patch varchar not null,
-  author varchar not null,
+  author varchar,
 
   thumbs_up integer not null,
   thumbs_down integer not null,

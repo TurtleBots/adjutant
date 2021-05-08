@@ -36,33 +36,29 @@ class ParserServiceImpl extends ParserService {
     for {
       _ <- many(whitespace)
       matchUp <- enumParser[MatchUp]
-      _ <- many(whitespace)
+      _ <- many1(whitespace)
       buildType <- enumParser[BuildType]
-      _ <- many(whitespace)
+      _ <- many1(whitespace)
       patch <- stringOf(oneOf("0123456789."))
-      _ <- many(whitespace)
-      author <- opt(stringOf(letterOrDigit))
       commands <- many1(commandParser)
-
       commandsSorted = commands.sortBy(_.whenDo)
       build = Build(
         matchUp = matchUp,
         ttype = buildType,
         patch = patch,
-        author = author,
         duration = commandsSorted.last.whenDo
       )
     } yield (build, commandsSorted)
 
   private lazy val commandParser =
     for {
-      _ <- many(whitespace)
+      _ <- many1(whitespace)
       supply <- int
-      _ <- many(horizontalWhitespace)
+      _ <- many1(whitespace)
       whenDo <- timeParser
-      _ <- many(horizontalWhitespace)
+      _ <- many1(whitespace)
       whatDo <- takeWhile1(c => c != '\n' && c != '\r')
-    } yield Command(supply = supply, whenDo = whenDo, whatDo = whatDo)
+    } yield Command(supply = supply, whenDo = whenDo, whatDo = whatDo.trim.toLowerCase)
 
   private def enumParser[T <: EnumEntry](implicit enum: Enum[T]): Parser[T] =
     enum
