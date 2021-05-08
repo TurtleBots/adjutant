@@ -22,7 +22,7 @@ class CommandRepoImpl(implicit executionContext: ExecutionContext) extends Comma
 
   override def getBuildIds(unitType: UnitType): DBIO[Seq[Int]] =
     commandTable
-      .filter(_.whatDo like s"%${unitType.toString.toLowerCase}%".bind)
+      .filter(_.whatDo.toLowerCase like s"%${unitType.toString.toLowerCase}%".bind)
       .map(_.buildId)
       .distinct
       .result
@@ -31,16 +31,16 @@ class CommandRepoImpl(implicit executionContext: ExecutionContext) extends Comma
   override val profile = PostgresProfile
 
   private class CommandTable(tag: Tag) extends Table[Command](tag, "command") {
-    def buildId = column[Int]("build_id")
     def supply  = column[Int]("supply")
     def whenDo  = column[Int]("when_do")
     def whatDo  = column[String]("what_do")
+    def buildId = column[Int]("build_id")
 
     def * = (
-      buildId,
       supply,
       whenDo,
-      whatDo
+      whatDo,
+      buildId
     ).mapTo[Command]
   }
 

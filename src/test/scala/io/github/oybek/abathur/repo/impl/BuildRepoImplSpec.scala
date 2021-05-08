@@ -1,45 +1,13 @@
 package io.github.oybek.abathur.repo.impl
 
-import cats.effect.unsafe.implicits.global
-import com.dimafeng.testcontainers.PostgreSQLContainer
-import com.dimafeng.testcontainers.munit.TestContainerForAll
-import io.github.oybek.abathur.Main
-import io.github.oybek.abathur.config.Config.DB
-import io.github.oybek.abathur.model.BuildType.Cheese
 import io.github.oybek.abathur.model.{Build, BuildType, Donors}
 import munit.FunSuite
 import slick.jdbc.PostgresProfile.api.Database
 
-import java.util.concurrent.Executors
-import scala.concurrent.ExecutionContext
-
-class BuildRepoImplSpec extends FunSuite with TestContainerForAll with Donors {
-  override val containerDef: PostgreSQLContainer.Def = PostgreSQLContainer.Def()
-  implicit val executionContext: ExecutionContext =
-    ExecutionContext.fromExecutor(
-      Executors.newFixedThreadPool(10)
-    )
-
-  override def afterContainersStart(container: containerDef.Container): Unit = {
-    Main.migrate(
-      DB(
-        url = container.jdbcUrl,
-        driver = container.driverClassName,
-        user = container.username,
-        password = container.password
-      )
-    ).unsafeRunSync()
-  }
-
-  test("create and retrieve the build") {
+class BuildRepoImplSpec extends FunSuite with PostgresSpec with Donors {
+  test("BuildRepoImplSpec ") {
     withContainers { postgresContainer =>
-      val db =
-        Database.forURL(
-          url = postgresContainer.jdbcUrl,
-          user = postgresContainer.username,
-          driver = postgresContainer.driverClassName,
-          password = postgresContainer.password
-        )
+      val db = createDbRunner(postgresContainer)
       val buildRepoImpl = new BuildRepoImpl
       db.run(
         for {

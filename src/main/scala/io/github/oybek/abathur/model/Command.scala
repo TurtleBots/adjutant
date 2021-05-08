@@ -1,6 +1,6 @@
 package io.github.oybek.abathur.model
 
-case class Command(buildId: Int,
-                   supply: Int,
+case class Command(supply: Int,
                    whenDo: Int,
-                   whatDo: String)
+                   whatDo: String,
+                   buildId: Int = -1)
