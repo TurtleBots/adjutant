@@ -6,7 +6,7 @@ import com.dimafeng.testcontainers.munit.TestContainerForAll
 import io.github.oybek.abathur.Main
 import io.github.oybek.abathur.config.Config.DB
 import io.github.oybek.abathur.model.BuildType.Cheese
-import io.github.oybek.abathur.model.{Build, Donors}
+import io.github.oybek.abathur.model.{Build, BuildType, Donors}
 import munit.FunSuite
 import slick.jdbc.PostgresProfile.api.Database
 
@@ -52,7 +52,7 @@ class BuildRepoImplSpec extends FunSuite with TestContainerForAll with Donors {
           builds <- buildRepoImpl.get(Some(buildDonor.matchUp), None, None)
           _ = assertEquals(builds, Seq(buildDonor.copy(id = generatedId)))
 
-          builds <- buildRepoImpl.get(Some(buildDonor.matchUp), Some(Cheese), None)
+          builds <- buildRepoImpl.get(Some(buildDonor.matchUp), BuildType.values.find(_ != buildDonor.ttype), None)
           _ = assertEquals(builds, Seq.empty[Build])
 
           _ <- buildRepoImpl.thumbUp(generatedId)

@@ -15,12 +15,12 @@ jobs:
       with:
         java-version: 11
 
-    - name: test/coverage
+    - name: Test with coverage
       run: |
         sbt clean coverage test
         sbt coverageReport
 
-    - name: sonar
+    - name: Sonar scan
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
