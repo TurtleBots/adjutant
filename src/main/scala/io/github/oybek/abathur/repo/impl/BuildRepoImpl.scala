@@ -75,7 +75,7 @@ class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRe
       duration,
       ttype,
       patch,
-      author,
+      author.?,
       thumbsUp,
       thumbsDown,
       dictationTgId.?).mapTo[Build]

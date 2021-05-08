@@ -1,11 +1,11 @@
 package io.github.oybek.abathur.model
 
-case class Build(id: Int,
+case class Build(id: Int = -1,
                  matchUp: MatchUp,
                  duration: Int,
                  ttype: BuildType,
                  patch: String,
-                 author: String,
-                 thumbsUp: Int,
-                 thumbsDown: Int,
-                 dictationTgId: Option[String])
+                 author: Option[String],
+                 thumbsUp: Int = 0,
+                 thumbsDown: Int = 0,
+                 dictationTgId: Option[String] = None)

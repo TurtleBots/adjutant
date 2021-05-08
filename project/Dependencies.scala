@@ -2,6 +2,7 @@ import sbt._
 
 object Dependencies {
   object V {
+    val atto = "0.7.0"
     val catsCore = "2.6.0"
     val catsEffect = "3.1.0"
     val enumeratum = "1.6.1"
@@ -19,18 +20,20 @@ object Dependencies {
   }
 
   val common: Seq[ModuleID] = Seq(
-    "ch.qos.logback"        %  "logback-classic"       % V.logback,
-    "com.beachape"          %% "enumeratum"            % V.enumeratum,
-    "com.beachape"          %% "enumeratum-slick"      % V.enumeratumSlick,
-    "com.github.pureconfig" %% "pureconfig"            % V.pureConfig,
-    "com.typesafe.slick"    %% "slick"                 % V.slick,
-    "com.typesafe.slick"    %% "slick-hikaricp"        % V.slick,
-    "org.flywaydb"          %  "flyway-core"           % V.flyway,
-    "org.postgresql"        %  "postgresql"            % V.jdbcPostgres,
-    "org.typelevel"         %% "cats-core"             % V.catsCore,
-    "org.typelevel"         %% "cats-effect"           % V.catsEffect,
-    "org.typelevel"         %% "log4cats-core"         % V.log4cats,
-    "org.typelevel"         %% "log4cats-slf4j"        % V.log4cats,
+    "ch.qos.logback"        %  "logback-classic"  % V.logback,
+    "com.beachape"          %% "enumeratum"       % V.enumeratum,
+    "com.beachape"          %% "enumeratum-slick" % V.enumeratumSlick,
+    "com.github.pureconfig" %% "pureconfig"       % V.pureConfig,
+    "com.typesafe.slick"    %% "slick"            % V.slick,
+    "com.typesafe.slick"    %% "slick-hikaricp"   % V.slick,
+    "org.flywaydb"          %  "flyway-core"      % V.flyway,
+    "org.postgresql"        %  "postgresql"       % V.jdbcPostgres,
+    "org.tpolecat"          %% "atto-core"        % V.atto,
+    "org.tpolecat"          %% "atto-refined"     % V.atto,
+    "org.typelevel"         %% "cats-core"        % V.catsCore,
+    "org.typelevel"         %% "cats-effect"      % V.catsEffect,
+    "org.typelevel"         %% "log4cats-core"    % V.log4cats,
+    "org.typelevel"         %% "log4cats-slf4j"   % V.log4cats,
 
     "com.danielasfregola"   %% "random-data-generator"           % V.randomDataGenerator % Test,
     "com.dimafeng"          %% "testcontainers-scala-munit"      % V.testContainers % Test,

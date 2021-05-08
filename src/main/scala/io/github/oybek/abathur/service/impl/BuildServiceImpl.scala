@@ -1,6 +1,6 @@
 package io.github.oybek.abathur.service.impl
 
-import cats.data.NonEmptySeq
+import cats.data.{NonEmptyList, NonEmptySeq}
 import cats.implicits._
 import cats.{Monad, ~>}
 import io.github.oybek.abathur.model.{Build, BuildType, Command, MatchUp, UnitType}
@@ -10,6 +10,8 @@ import io.github.oybek.abathur.service.BuildService
 class BuildServiceImpl[F[_], DB[_]: Monad](buildRepo: BuildRepo[DB],
                                            commandRepo: CommandRepo[DB])
                                           (implicit dbRun: DB ~> F) extends BuildService[F] {
+
+  override def addBuild(build: Build, commands: NonEmptyList[Command]): F[Unit] = ???
 
   override def getBuild(buildId: Int): F[Option[(Build, Seq[Command])]] =
     dbRun {
