@@ -1,9 +1,12 @@
 package io.github.oybek.abathur
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits.catsSyntaxApplicativeId
+import io.github.oybek.abathur.bot.Bot
+import io.github.oybek.abathur.config.Config
 import io.github.oybek.abathur.deps.Deps
+import io.github.oybek.abathur.service.impl.ParserServiceImpl
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import telegramium.bots.high.{Api, BotApi}
 
 object Main extends Deps[IO] with IOApp {
 
@@ -15,8 +18,20 @@ object Main extends Deps[IO] with IOApp {
       config <- readConfig
       _ <- logger.info(s"loaded configs: $config")
       _ <- migrate(config.db)
-      _ <- createDb(config.db).use {
-        _ => ().pure[IO]
+      _ <- resources(config).use {
+        case (_, http) =>
+          implicit val api: Api[IO] = BotApi(
+            http,
+            baseUrl = s"https://api.telegram.org/bot${config.tg.token}"
+          )
+          implicit val parserService = new ParserServiceImpl
+          new Bot[IO].start()
       }
     } yield ExitCode.Success
+
+  private def resources(config: Config) =
+    for {
+      db <- createDb(config.db)
+      http <- createHttpClient
+    } yield (db, http)
 }

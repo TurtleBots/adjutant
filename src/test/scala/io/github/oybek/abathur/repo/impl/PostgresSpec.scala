@@ -1,6 +1,5 @@
 package io.github.oybek.abathur.repo.impl
 
-import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.munit.TestContainerForAll
 import io.github.oybek.abathur.Main

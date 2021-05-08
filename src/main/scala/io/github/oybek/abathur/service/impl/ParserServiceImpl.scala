@@ -11,7 +11,7 @@ class ParserServiceImpl extends ParserService {
   override def parseBuildId(text: String): Either[String, Int] =
     buildIdParser.parse(text).done.either
 
-  override def parseQuery(text: String): Either[String, Seq[EnumEntry]] =
+  override def parseQuery(text: String): Either[String, NonEmptyList[EnumEntry]] =
     queryParser.parse(text).done.either
 
   override def parseBuild(text: String): Either[String, (Build, NonEmptyList[Command])] =
@@ -23,8 +23,8 @@ class ParserServiceImpl extends ParserService {
     stringCI("/build") ~>
     int
 
-  private lazy val queryParser: Parser[List[EnumEntry]] =
-    many(
+  private lazy val queryParser: Parser[NonEmptyList[EnumEntry]] =
+    many1(
       many(whitespace) ~> (
         enumParser[BuildType] |
           enumParser[UnitType] |

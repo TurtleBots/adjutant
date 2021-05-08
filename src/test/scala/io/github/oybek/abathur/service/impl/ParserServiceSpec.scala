@@ -31,7 +31,7 @@ class ParserServiceSpec extends FunSuite {
   test("parseQuerySpec") {
     assertEquals(
       parserService.parseQuery("zvt zvt allin zvz"),
-      Seq(ZvT, ZvT, Allin, ZvZ).asRight[String]
+      NonEmptyList.of(ZvT, ZvT, Allin, ZvZ).asRight[String]
     )
 
     assertEquals(
@@ -41,7 +41,7 @@ class ParserServiceSpec extends FunSuite {
           |
           |roach
           |""".stripMargin),
-      Seq(ZvT, Allin, Roach).asRight[String]
+      NonEmptyList.of(ZvT, Allin, Roach).asRight[String]
     )
   }
 

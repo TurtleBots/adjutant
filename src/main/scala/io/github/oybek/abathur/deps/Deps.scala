@@ -1,18 +1,25 @@
 package io.github.oybek.abathur.deps
 
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{IO, IOApp, Resource, Sync}
 import cats.implicits.catsSyntaxApplicativeId
 import io.github.oybek.abathur.config.Config
 import io.github.oybek.abathur.config.Config.DB
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.output.MigrateResult
+import org.http4s.client.Client
+import org.http4s.client.blaze.BlazeClientBuilder
 import pureconfig.ConfigSource
 import pureconfig.error.ConfigReaderException
 import pureconfig.generic.auto._
 import slick.jdbc.PostgresProfile.api.Database
 import slick.jdbc.PostgresProfile.backend.DatabaseDef
 
+import java.util.concurrent.Executors
+import scala.concurrent.ExecutionContext
+
 class Deps[F[_]: Sync] {
+  this: IOApp =>
+
   def readConfig: IO[Config] =
     for {
       configReadResult <- IO(ConfigSource.default.load[Config])
@@ -36,6 +43,12 @@ class Deps[F[_]: Sync] {
     ) { databaseDef =>
       Sync[F].delay(databaseDef.close())
     }
+  }
+
+  def createHttpClient: Resource[IO, Client[IO]] = {
+    val executionContext: ExecutionContext =
+      ExecutionContext.fromExecutor(Executors.newCachedThreadPool)
+    BlazeClientBuilder[IO](executionContext).resource
   }
 
   def migrate(db: DB): IO[MigrateResult] =
