@@ -8,4 +8,5 @@ trait ParserService {
   def parseBuildId(text: String): Either[String, Int]
   def parseQuery(text: String): Either[String, NonEmptyList[EnumEntry]]
   def parseBuild(text: String): Either[String, (Build, NonEmptyList[Command])]
+  def parseStartOrHelp(text: String): Either[String, String]
 }

@@ -17,7 +17,13 @@ class ParserServiceImpl extends ParserService {
   override def parseBuild(text: String): Either[String, (Build, NonEmptyList[Command])] =
     buildParser.parse(text).done.either
 
+  override def parseStartOrHelp(text: String): Either[String, String] =
+    startOrHelpParser.parse(text).done.either
+
   //
+  private lazy val startOrHelpParser: Parser[String] =
+    stringCI("/start") | stringCI("/help")
+
   private lazy val buildIdParser: Parser[Int] =
     many(whitespace) ~>
     stringCI("/build") ~>
@@ -66,10 +72,11 @@ class ParserServiceImpl extends ParserService {
       .map(x => stringCI(x.toString.toLowerCase).map(_ => x))
       .reduce(_ | _)
 
-  private lazy val timeParser =
+  private lazy val timeParser = {
     for {
       minutes <- int
       _ <- char(':')
       seconds <- int
     } yield minutes * 60 + seconds
+  }
 }

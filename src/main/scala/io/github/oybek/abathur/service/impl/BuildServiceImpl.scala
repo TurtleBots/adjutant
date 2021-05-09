@@ -8,9 +8,10 @@ import io.github.oybek.abathur.model.{Build, BuildType, Command, MatchUp, UnitTy
 import io.github.oybek.abathur.repo.{BuildRepo, CommandRepo}
 import io.github.oybek.abathur.service.BuildService
 
-class BuildServiceImpl[F[_], DB[_]: Monad](buildRepo: BuildRepo[DB],
-                                           commandRepo: CommandRepo[DB])
-                                          (implicit dbRun: DB ~> F) extends BuildService[F] {
+class BuildServiceImpl[F[_], DB[_]: Monad](implicit
+                                           buildRepo: BuildRepo[DB],
+                                           commandRepo: CommandRepo[DB],
+                                           dbRun: DB ~> F) extends BuildService[F] {
 
   override def addBuild(build: Build, commands: NonEmptyList[Command]): F[Unit] =
     dbRun {
@@ -47,4 +48,7 @@ class BuildServiceImpl[F[_], DB[_]: Monad](buildRepo: BuildRepo[DB],
       } yield builds
     }
   }
+
+  override def setDictationTgId(buildId: Int, tgId: String): F[Int] =
+    dbRun(buildRepo.setDictationTgId(buildId, tgId))
 }
