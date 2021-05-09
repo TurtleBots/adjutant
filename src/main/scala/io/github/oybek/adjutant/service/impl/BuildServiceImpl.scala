@@ -4,8 +4,8 @@ import cats.data.{NonEmptyList, NonEmptySeq}
 import cats.implicits._
 import cats.{Monad, ~>}
 import enumeratum.EnumEntry
-import io.github.oybek.adjutant.model.{Build, BuildType, Command, MatchUp, UnitType}
-import io.github.oybek.adjutant.repo.{BuildRepo, CommandRepo}
+import io.github.oybek.adjutant.model.{Build, BuildType, Command, Journal, MatchUp, UnitType}
+import io.github.oybek.adjutant.repo.{BuildRepo, CommandRepo, JournalRepo}
 import io.github.oybek.adjutant.service.BuildService
 
 class BuildServiceImpl[F[_], DB[_]: Monad](implicit

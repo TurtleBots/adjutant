@@ -1,30 +1,35 @@
 package io.github.oybek.adjutant.bot
 
-import cats.Parallel
+import cats.{Parallel, ~>}
 import cats.effect.{Sync, Timer}
 import cats.implicits._
-import io.github.oybek.adjutant.model.{Build, Command}
+import io.github.oybek.adjutant.model.{Build, Command, Journal}
+import io.github.oybek.adjutant.repo.JournalRepo
 import io.github.oybek.adjutant.service.{BuildService, ParserService}
 import telegramium.bots.Message
 import telegramium.bots._
 import telegramium.bots.high.implicits._
 import telegramium.bots.high.{Api, LongPollBot}
 
+import java.sql.Timestamp
 import scala.concurrent.duration.DurationInt
 
-class Bot[F[_]: Sync: Parallel: Timer](implicit api: Api[F],
-                                       parserService: ParserService,
-                                       buildService: BuildService[F]) extends LongPollBot[F](api) {
+class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
+                                              api: Api[F],
+                                              parserService: ParserService,
+                                              journalRepo: JournalRepo[DB],
+                                              buildService: BuildService[F],
+                                              dbRun: DB ~> F) extends LongPollBot[F](api) {
 
   override def onMessage(message: Message): F[Unit] = {
-    implicit val chatId: ChatId = ChatIntId(message.chat.id)
+    implicit val chatId: ChatIntId = ChatIntId(message.chat.id)
     Seq(
       message.text.map(whenText),
       (message.audio, message.caption).mapN(whenAudioWithCaption)
     ).reduce(_ orElse _).getOrElse(sendConfused)
   }
 
-  private def whenText(text: String)(implicit chatId: ChatId): F[Unit] =
+  private def whenText(text: String)(implicit chatId: ChatIntId): F[Unit] =
     Seq(
       parserService.parseStartOrHelp(text).map {
         _ =>
@@ -47,6 +52,17 @@ class Bot[F[_]: Sync: Parallel: Timer](implicit api: Api[F],
       parserService.parseBuildId(text).map { buildId =>
         for {
           buildOpt <- buildService.getBuild(buildId)
+          _ <- buildOpt.traverse { case (build, _) =>
+            dbRun {
+              journalRepo.add(
+                Journal(
+                  userId = chatId.id,
+                  buildId = build.id,
+                  timestamp = new Timestamp(System.currentTimeMillis())
+                )
+              )
+            }
+          }
           text = buildOpt.fold("No builds with such configuration") { case (b, cs) =>
             drawBuild(b, cs)
           }
