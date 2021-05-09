@@ -63,10 +63,17 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
               )
             }
           }
-          text = buildOpt.fold("No builds with such configuration") { case (b, cs) =>
-            drawBuild(b, cs)
+          (text, markup) = buildOpt.fold(
+            "No builds with such configuration" ->
+              Option.empty[KeyboardMarkup]
+          ) { case (b, cs) =>
+            drawBuild(b, cs) ->
+              InlineKeyboardMarkup(List(List(
+                InlineKeyboardButton(s"\uD83D\uDC4D ${b.thumbsUp}", callbackData = s"/thumbup${b.id}".some),
+                InlineKeyboardButton(s"\uD83D\uDC4E ${b.thumbsDown}", callbackData = s"/thumbdown${b.id}".some),
+              ))).some
           }
-          _ <- sendText(text)
+          _ <- sendText(text, markup)
           _ <- Timer[F].sleep(200.millis)
           _ <- buildOpt.flatMap(_._1.dictationTgId).traverse(sendAudio)
         } yield ()
@@ -91,11 +98,12 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
   private def sendConfused(implicit chatId: ChatId): F[Unit] =
     sendText("Unacceptable command\nPress /help")
 
-  private def sendText(text: String)(implicit chatId: ChatId): F[Unit] =
+  private def sendText(text: String, keyboardMarkup: Option[KeyboardMarkup] = None)(implicit chatId: ChatId): F[Unit] =
     sendMessage(
       chatId = chatId,
       text = text,
-      parseMode = Markdown.some
+      parseMode = Markdown.some,
+      replyMarkup = keyboardMarkup
     ).exec.void
 
   private def sendAudio(fileId: String)(implicit chatId: ChatId): F[Unit] =
