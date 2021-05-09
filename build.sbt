@@ -2,8 +2,8 @@
 ThisBuild / version := "0.1"
 ThisBuild / organization := "io.github.oybek"
 
-lazy val abathur = (project in file("."))
-  .settings(name := "abathur")
+lazy val adjutant = (project in file("."))
+  .settings(name := "adjutant")
   .settings(libraryDependencies ++= Dependencies.common)
   .settings(sonarProperties := Sonar.properties)
   .settings(Compiler.settings)

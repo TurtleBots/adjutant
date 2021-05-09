@@ -3,8 +3,8 @@ object Sonar {
   val properties = Map(
     "sonar.host.url" -> "https://sonarcloud.io",
     "sonar.organization" -> "oybek",
-    "sonar.projectName" -> "abathur",
-    "sonar.projectKey" -> "oybek_abathur",
+    "sonar.projectName" -> "adjutant",
+    "sonar.projectKey" -> "oybek_adjutant",
     "sonar.sources" -> "src/main/scala",
     "sonar.tests" -> "src/test/scala",
     "sonar.sourceEncoding" -> "UTF-8",
