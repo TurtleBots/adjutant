@@ -13,7 +13,7 @@ class Bot[F[_]: Sync: Parallel: Timer](implicit api: Api[F],
                                        parserService: ParserService) extends LongPollBot[F](api) {
 
   override def onMessage(message: Message): F[Unit] = {
-    implicit val chatId = ChatIntId(message.chat.id)
+    implicit val chatId: ChatId = ChatIntId(message.chat.id)
     Seq(
       message.text.map(whenText),
       (message.audio, message.caption).mapN(whenAudioWithCaption)

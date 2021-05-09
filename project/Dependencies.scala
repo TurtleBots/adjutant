@@ -18,8 +18,6 @@ object Dependencies {
 
     val munit = "0.7.25"
     val randomDataGenerator = "2.9"
-    val scalaMock = "5.1.0"
-    val scalaTest = "3.1.0"
     val testContainers = "0.39.3"
   }
 
@@ -46,8 +44,6 @@ object Dependencies {
     "com.danielasfregola"   %% "random-data-generator"           % V.randomDataGenerator % Test,
     "com.dimafeng"          %% "testcontainers-scala-munit"      % V.testContainers % Test,
     "com.dimafeng"          %% "testcontainers-scala-postgresql" % V.testContainers % Test,
-    "org.scalameta"         %% "munit"                           % V.munit % Test,
-    "org.scalamock"         %% "scalamock"                       % V.scalaMock % Test,
-    "org.scalatest"         %% "scalatest"                       % V.scalaTest % Test
+    "org.scalameta"         %% "munit"                           % V.munit % Test
   )
 }

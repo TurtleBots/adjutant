@@ -14,3 +14,4 @@ assemblyMergeStrategy in assembly := {
 }
 
 testFrameworks += new TestFramework("munit.Framework")
+Test / parallelExecution := false
