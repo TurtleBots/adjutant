@@ -2,12 +2,14 @@ package io.github.oybek.adjutant.bot
 
 import cats.data.NonEmptyList
 import cats.{Parallel, ~>}
-import cats.effect.{Sync, Timer}
+import cats.effect.{IO, Sync, Timer}
 import cats.implicits._
 import enumeratum.EnumEntry
+import io.github.oybek.adjutant.Main
 import io.github.oybek.adjutant.model.{Build, Command, Journal}
 import io.github.oybek.adjutant.repo.JournalRepo
 import io.github.oybek.adjutant.service.{BuildService, ParserService}
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import telegramium.bots.Message
 import telegramium.bots._
 import telegramium.bots.high.implicits._
@@ -23,22 +25,45 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
                                               buildService: BuildService[F],
                                               dbRun: DB ~> F) extends LongPollBot[F](api) {
 
+  private val logger = Slf4jLogger.getLoggerFromClass[F](this.getClass)
+
   override def onMessage(message: Message): F[Unit] = {
+    implicit val messageImpl = message
     implicit val chatId: ChatIntId = ChatIntId(message.chat.id)
+    logger.info(s"xxxxx $message") >>
     Seq(
       message.text.map(whenText),
-      (message.audio, message.caption).mapN(whenAudioWithCaption)
+      message.voice.map(_ => whenVoice)
     ).reduce(_ orElse _).getOrElse(sendConfused)
   }
 
-  private def whenText(text: String)(implicit chatId: ChatIntId): F[Unit] =
+  private def whenVoice(implicit chatId: ChatIntId): F[Unit] =
+    sendText("Reply to this voice message with command `/voicebuildX` to attach it to the build")
+
+  private def whenText(text: String)(implicit chatId: ChatIntId, message: Message): F[Unit] =
     Seq(
       parserService.parseAll(text).map(_ => whenGotAll),
       parserService.parseStartOrHelp(text).map(_ => whenGotHelpAsk),
       parserService.parseBuild(text).map { case (b, cs) => whenGotBuildOffer(b, cs) },
       parserService.parseBuildId(text).map(whenBuildAskedById),
-      parserService.parseQuery(text).map(whenGotQuery)
+      parserService.parseQuery(text).map(whenGotQuery),
+      parserService.parseVoiceBuild(text).map(whenVoiceBuild)
     ).reduce(_ orElse _).getOrElse(sendConfused)
+
+  private def whenVoiceBuild(buildId: Int)(implicit chatId: ChatIntId, message: Message): F[Unit] =
+    message.replyToMessage.flatMap(_.voice).fold(
+      sendText("You have to reply to voice message")
+    ) { voice =>
+      buildService.getBuild(buildId).flatMap {
+        case Some((build, _)) =>
+          build.dictationTgId.fold(
+            buildService.setDictationTgId(buildId, voice.fileId) >>
+            sendText(s"Voice successfully pinned to /build$buildId")
+          )(_ => sendText("Build already has the voice"))
+        case None =>
+          sendText(s"No build with id $buildId")
+      }
+    }
 
   private def whenGotHelpAsk(implicit chatId: ChatIntId) =
     sendText(
@@ -86,8 +111,8 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
         drawBuild(b, cs)
       }
       _ <- sendText(text)
-      _ <- Timer[F].sleep(200.millis)
-      _ <- buildOpt.flatMap(_._1.dictationTgId).traverse(sendAudio)
+      _ <- Timer[F].sleep(50.millis)
+      _ <- buildOpt.flatMap(_._1.dictationTgId).traverse(sendVoice)
     } yield ()
 
   private def whenGotBuildOffer(build: Build, commands: NonEmptyList[Command])(implicit chatId: ChatIntId) =
@@ -99,11 +124,6 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
       )
     } yield ()
 
-  private def whenAudioWithCaption(audio: Audio, caption: String)(implicit chatId: ChatId): F[Unit] =
-    parserService.parseBuildId(caption).traverse { buildId =>
-      buildService.setDictationTgId(buildId, audio.fileId)
-    }.void
-
   private def sendConfused(implicit chatId: ChatId): F[Unit] =
     sendText("Unacceptable command\nPress /help")
 
@@ -114,11 +134,11 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
       parseMode = Markdown.some
     ).exec.void
 
-  private def sendAudio(fileId: String)(implicit chatId: ChatId): F[Unit] =
-    sendAudio(
+  private def sendVoice(fileId: String)(implicit chatId: ChatId): F[Unit] =
+    sendVoice(
       chatId = chatId,
-      audio = InputLinkFile(fileId),
-    ).exec.void
+      voice = InputLinkFile(fileId),
+    ).exec.attempt.void
 
   private def drawBuild(build: Build, commands: Seq[Command]): String = {
     val supplyWidth = commands.map(_.supply.toString.length).maxOption.getOrElse(0)

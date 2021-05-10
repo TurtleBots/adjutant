@@ -10,4 +10,5 @@ trait ParserService {
   def parseBuild(text: String): Either[String, (Build, NonEmptyList[Command])]
   def parseStartOrHelp(text: String): Either[String, String]
   def parseAll(text: String): Either[String, String]
+  def parseVoiceBuild(text: String): Either[String, Int]
 }

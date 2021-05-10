@@ -23,7 +23,13 @@ class ParserServiceImpl extends ParserService {
   override def parseAll(text: String): Either[String, String] =
     allParser.parse(text).done.either
 
+  override def parseVoiceBuild(text: String): Either[String, Int] =
+    parseVoiceBuild.parse(text).done.either
+
   //
+  private lazy val parseVoiceBuild: Parser[Int] =
+    stringCI("/voiceBuild") ~> int
+
   private lazy val startOrHelpParser: Parser[String] =
     stringCI("/start") | stringCI("/help")
 
