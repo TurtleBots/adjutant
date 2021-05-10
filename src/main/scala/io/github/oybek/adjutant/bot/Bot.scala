@@ -1,17 +1,15 @@
 package io.github.oybek.adjutant.bot
 
 import cats.data.NonEmptyList
-import cats.{Parallel, ~>}
-import cats.effect.{IO, Sync, Timer}
+import cats.effect.{Sync, Timer}
 import cats.implicits._
+import cats.{Parallel, ~>}
 import enumeratum.EnumEntry
-import io.github.oybek.adjutant.Main
 import io.github.oybek.adjutant.model.{Build, Command, Journal}
 import io.github.oybek.adjutant.repo.JournalRepo
 import io.github.oybek.adjutant.service.{BuildService, ParserService}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import telegramium.bots.Message
-import telegramium.bots._
+import telegramium.bots.{Message, _}
 import telegramium.bots.high.implicits._
 import telegramium.bots.high.{Api, LongPollBot}
 
@@ -25,12 +23,9 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
                                               buildService: BuildService[F],
                                               dbRun: DB ~> F) extends LongPollBot[F](api) {
 
-  private val logger = Slf4jLogger.getLoggerFromClass[F](this.getClass)
-
   override def onMessage(message: Message): F[Unit] = {
     implicit val messageImpl = message
     implicit val chatId: ChatIntId = ChatIntId(message.chat.id)
-    logger.info(s"xxxxx $message") >>
     Seq(
       message.text.map(whenText),
       message.voice.map(_ => whenVoice)
@@ -38,7 +33,7 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
   }
 
   private def whenVoice(implicit chatId: ChatIntId): F[Unit] =
-    sendText("Reply to this voice message with command `/voicebuildX` to attach it to the build")
+    sendText("Reply to this voice message with command `/pin2buildX` to attach it to the build with id X")
 
   private def whenText(text: String)(implicit chatId: ChatIntId, message: Message): F[Unit] =
     Seq(
@@ -55,6 +50,8 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
       sendText("You have to reply to voice message")
     ) { voice =>
       buildService.getBuild(buildId).flatMap {
+        case Some((build, _)) if build.author != chatId.id =>
+          sendText("Only the author of the build can do it")
         case Some((build, _)) =>
           build.dictationTgId.fold(
             buildService.setDictationTgId(buildId, voice.fileId) >>
@@ -117,7 +114,7 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
 
   private def whenGotBuildOffer(build: Build, commands: NonEmptyList[Command])(implicit chatId: ChatIntId) =
     for {
-      res <- buildService.addBuild(build, commands).attempt
+      res <- buildService.addBuild(build.copy(author = chatId.id), commands).attempt
       _ <- res.fold(
         th => sendText(s"Error occured: ${th.getLocalizedMessage}"),
         buildId => sendText(s"Build research complete ✅\nPress /build$buildId to see")

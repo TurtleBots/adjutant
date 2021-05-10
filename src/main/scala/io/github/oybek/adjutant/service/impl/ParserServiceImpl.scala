@@ -28,13 +28,13 @@ class ParserServiceImpl extends ParserService {
 
   //
   private lazy val parseVoiceBuild: Parser[Int] =
-    stringCI("/voiceBuild") ~> int
+    stringCI("/pin2build") ~> int
 
   private lazy val startOrHelpParser: Parser[String] =
     stringCI("/start") | stringCI("/help")
 
   private lazy val allParser: Parser[String] =
-    stringCI("builds")
+    opt(stringCI("/cmd")) ~> many(whitespace) ~> stringCI("all") <~ endOfInput
 
   private lazy val buildIdParser: Parser[Int] =
     many(whitespace) ~>
@@ -42,6 +42,7 @@ class ParserServiceImpl extends ParserService {
     int
 
   private lazy val queryParser: Parser[NonEmptyList[EnumEntry]] =
+    opt(stringCI("/cmd")) ~>
     many1(
       many(whitespace) ~> (
         enumParser[BuildType] |

@@ -42,7 +42,7 @@ class CommandRepoImplSpec extends FunSuite with PostgresSpec with Donors {
     6*60+12,
     Allin,
     "4.11.0",
-    None,
+    0,
     0,
     0,
     Option.empty[String])

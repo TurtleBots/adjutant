@@ -5,7 +5,7 @@ case class Build(id: Int = -1,
                  duration: Int,
                  ttype: BuildType,
                  patch: String,
-                 author: Option[String] = None,
+                 author: Long = -1,
                  thumbsUp: Int = 0,
                  thumbsDown: Int = 0,
                  dictationTgId: Option[String] = None)

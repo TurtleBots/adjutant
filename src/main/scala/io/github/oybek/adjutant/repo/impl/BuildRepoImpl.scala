@@ -64,7 +64,7 @@ class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRe
     def duration       = column[Int]("duration")
     def ttype          = column[BuildType]("ttype")
     def patch          = column[String]("patch")
-    def author         = column[String]("author")
+    def author         = column[Long]("author")
     def thumbsUp       = column[Int]("thumbs_up")
     def thumbsDown     = column[Int]("thumbs_down")
     def dictationTgId  = column[String]("dictation_tg_id")
@@ -75,7 +75,7 @@ class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRe
       duration,
       ttype,
       patch,
-      author.?,
+      author,
       thumbsUp,
       thumbsDown,
       dictationTgId.?).mapTo[Build]
