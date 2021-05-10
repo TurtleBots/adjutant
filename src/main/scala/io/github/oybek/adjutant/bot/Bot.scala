@@ -1,8 +1,10 @@
 package io.github.oybek.adjutant.bot
 
+import cats.data.NonEmptyList
 import cats.{Parallel, ~>}
 import cats.effect.{Sync, Timer}
 import cats.implicits._
+import enumeratum.EnumEntry
 import io.github.oybek.adjutant.model.{Build, Command, Journal}
 import io.github.oybek.adjutant.repo.JournalRepo
 import io.github.oybek.adjutant.service.{BuildService, ParserService}
@@ -15,7 +17,7 @@ import java.sql.Timestamp
 import scala.concurrent.duration.DurationInt
 
 class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
-                                              api: Api[F],
+                                              val api: Api[F],
                                               parserService: ParserService,
                                               journalRepo: JournalRepo[DB],
                                               buildService: BuildService[F],
@@ -31,57 +33,60 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
 
   private def whenText(text: String)(implicit chatId: ChatIntId): F[Unit] =
     Seq(
-      parserService.parseStartOrHelp(text).map {
-        _ =>
-          sendText(
-            """Search query examples:
-              |`tvp economic`
-              |`zvt`
-              |`zvt allin roach`
-              |""".stripMargin)
-      },
-      parserService.parseBuild(text).map { case (build, commands) =>
-        for {
-          res <- buildService.addBuild(build, commands).attempt
-          _ <- res.fold(
-            th => sendText(s"Error occured: ${th.getLocalizedMessage}"),
-            _ => sendText("Build research complete")
-          )
-        } yield ()
-      },
-      parserService.parseBuildId(text).map { buildId =>
-        for {
-          buildOpt <- buildService.getBuild(buildId)
-          _ <- buildOpt.traverse { case (build, _) =>
-            dbRun {
-              journalRepo.add(
-                Journal(
-                  userId = chatId.id,
-                  buildId = build.id,
-                  timestamp = new Timestamp(System.currentTimeMillis())
-                )
-              )
-            }
-          }
-          text = buildOpt.fold("No builds with such configuration") { case (b, cs) =>
-            drawBuild(b, cs)
-          }
-          _ <- sendText(text)
-          _ <- Timer[F].sleep(200.millis)
-          _ <- buildOpt.flatMap(_._1.dictationTgId).traverse(sendAudio)
-        } yield ()
-      },
-      parserService.parseQuery(text).map { query =>
-        for {
-          builds <- buildService.getBuilds(query.toList)
-          text = builds match {
-            case Nil => "No builds with such configuration"
-            case bs => drawBuilds(bs)
-          }
-          _ <- sendText(text)
-        } yield ()
-      }
+      parserService.parseStartOrHelp(text).map(_ => whenGotHelpAsk),
+      parserService.parseBuild(text).map { case (b, cs) => whenGotBuildOffer(b, cs) },
+      parserService.parseBuildId(text).map(whenBuildAskedById),
+      parserService.parseQuery(text).map(whenGotQuery)
     ).reduce(_ orElse _).getOrElse(sendConfused)
+
+  private def whenGotHelpAsk(implicit chatId: ChatIntId) =
+    sendText(
+      """Search query examples:
+        |`tvp economic`
+        |`zvt`
+        |`zvt allin roach`
+        |""".stripMargin)
+
+  private def whenGotQuery(query: NonEmptyList[EnumEntry])(implicit chatId: ChatIntId) =
+    for {
+      builds <- buildService.getBuilds(query.toList)
+      text = builds match {
+        case Nil => "No builds with such configuration"
+        case bs => drawBuilds(bs)
+      }
+      _ <- sendText(text)
+    } yield ()
+
+  private def whenBuildAskedById(buildId: Int)(implicit chatId: ChatIntId) =
+    for {
+      buildOpt <- buildService.getBuild(buildId)
+      _ <- buildOpt.traverse { case (build, _) =>
+        dbRun {
+          journalRepo.add(
+            Journal(
+              userId = chatId.id,
+              buildId = build.id,
+              timestamp = new Timestamp(System.currentTimeMillis())
+            )
+          )
+        }
+      }
+      text = buildOpt.fold("No builds with such configuration") { case (b, cs) =>
+        drawBuild(b, cs)
+      }
+      _ <- sendText(text)
+      _ <- Timer[F].sleep(200.millis)
+      _ <- buildOpt.flatMap(_._1.dictationTgId).traverse(sendAudio)
+    } yield ()
+
+  private def whenGotBuildOffer(build: Build, commands: NonEmptyList[Command])(implicit chatId: ChatIntId) =
+    for {
+      res <- buildService.addBuild(build, commands).attempt
+      _ <- res.fold(
+        th => sendText(s"Error occured: ${th.getLocalizedMessage}"),
+        _ => sendText("Build research complete")
+      )
+    } yield ()
 
   private def whenAudioWithCaption(audio: Audio, caption: String)(implicit chatId: ChatId): F[Unit] =
     parserService.parseBuildId(caption).traverse { buildId =>
@@ -117,6 +122,9 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
 
   private def drawBuilds(builds: Seq[Build]): String =
     builds.map(build =>
-      s"/build${build.id} `${build.matchUp}` `${build.ttype}`"
+      s"/build${build.id} $thumbUp`${build.thumbsUp}` $thumbDown`${build.thumbsDown}` | `${build.matchUp}` `${build.ttype}`"
     ).mkString("\n")
+
+  private val thumbUp = "\uD83D\uDC4D"
+  private val thumbDown = "\uD83D\uDC4E"
 }
