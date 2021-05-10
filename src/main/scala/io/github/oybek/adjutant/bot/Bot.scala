@@ -33,6 +33,7 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
 
   private def whenText(text: String)(implicit chatId: ChatIntId): F[Unit] =
     Seq(
+      parserService.parseAll(text).map(_ => whenGotAll),
       parserService.parseStartOrHelp(text).map(_ => whenGotHelpAsk),
       parserService.parseBuild(text).map { case (b, cs) => whenGotBuildOffer(b, cs) },
       parserService.parseBuildId(text).map(whenBuildAskedById),
@@ -46,6 +47,16 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
         |`zvt`
         |`zvt allin roach`
         |""".stripMargin)
+
+  private def whenGotAll(implicit chatId: ChatIntId) =
+    for {
+      builds <- buildService.getBuilds(Seq.empty[EnumEntry])
+      text = builds match {
+        case Nil => "No builds in the system"
+        case bs => drawBuilds(bs)
+      }
+      _ <- sendText(text)
+    } yield ()
 
   private def whenGotQuery(query: NonEmptyList[EnumEntry])(implicit chatId: ChatIntId) =
     for {
@@ -71,7 +82,7 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
           )
         }
       }
-      text = buildOpt.fold("No builds with such configuration") { case (b, cs) =>
+      text = buildOpt.fold("No builds with such id") { case (b, cs) =>
         drawBuild(b, cs)
       }
       _ <- sendText(text)
@@ -84,7 +95,7 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
       res <- buildService.addBuild(build, commands).attempt
       _ <- res.fold(
         th => sendText(s"Error occured: ${th.getLocalizedMessage}"),
-        _ => sendText("Build research complete")
+        buildId => sendText(s"Build research complete ✅\nPress /build$buildId to see")
       )
     } yield ()
 

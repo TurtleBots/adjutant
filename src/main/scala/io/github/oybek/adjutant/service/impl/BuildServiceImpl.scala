@@ -13,7 +13,7 @@ class BuildServiceImpl[F[_], DB[_]: Monad](implicit
                                            commandRepo: CommandRepo[DB],
                                            dbRun: DB ~> F) extends BuildService[F] {
 
-  override def addBuild(build: Build, commands: NonEmptyList[Command]): F[Unit] =
+  override def addBuild(build: Build, commands: NonEmptyList[Command]): F[Int] =
     dbRun {
       for {
         buildId <- buildRepo.add(build)
@@ -22,7 +22,7 @@ class BuildServiceImpl[F[_], DB[_]: Monad](implicit
             .map(_.copy(buildId = buildId))
             .toList
         )
-      } yield ()
+      } yield buildId
     }
 
   override def getBuild(buildId: Int): F[Option[(Build, Seq[Command])]] =
