@@ -53,6 +53,7 @@ class ParserServiceImpl extends ParserService {
 
   private val buildParser =
     for {
+      _ <- opt(stringCI("/cmd"))
       _ <- many(whitespace)
       matchUp <- enumParser[MatchUp]
       _ <- many1(whitespace)
