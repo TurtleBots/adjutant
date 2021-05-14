@@ -6,7 +6,8 @@ import io.github.oybek.adjutant.bot.Bot
 import io.github.oybek.adjutant.config.Config
 import io.github.oybek.adjutant.deps.Deps
 import io.github.oybek.adjutant.repo.impl.{BuildRepoImpl, CommandRepoImpl, JournalRepoImpl}
-import io.github.oybek.adjutant.service.impl.{BuildServiceImpl, ParserServiceImpl}
+import io.github.oybek.adjutant.service.build.BuildServiceImpl
+import io.github.oybek.adjutant.service.qlang.CommandParser
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import slick.dbio.DBIO
 import telegramium.bots.high.{Api, BotApi}
@@ -40,7 +41,6 @@ object Main extends Deps[IO] with IOApp {
             http,
             baseUrl = s"https://api.telegram.org/bot${config.tg.token}"
           )
-          implicit val parserService = new ParserServiceImpl
           implicit val journalRepo = new JournalRepoImpl
           implicit val buildRepo = new BuildRepoImpl
           implicit val commandRepo = new CommandRepoImpl

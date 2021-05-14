@@ -1,4 +1,4 @@
-package io.github.oybek.adjutant.service.impl
+package io.github.oybek.adjutant.service.build
 
 import cats.data.NonEmptyList
 import cats.implicits.catsSyntaxEitherId
@@ -6,48 +6,49 @@ import io.github.oybek.adjutant.model.{Build, Command}
 import io.github.oybek.adjutant.model.BuildType._
 import io.github.oybek.adjutant.model.MatchUp._
 import io.github.oybek.adjutant.model.UnitType.Roach
+import io.github.oybek.adjutant.service.qlang.CommandParser
+import io.github.oybek.adjutant.service.qlang.QueryLang.{And, Const, Less}
 import munit.FunSuite
 
 class ParserServiceSpec extends FunSuite {
-  val parserService = new ParserServiceImpl
-
   test("parseBuildIdSpec") {
     assertEquals(
-      clue(parserService.parseBuildId("/build123")),
+      clue(CommandParser.parseBuildId("/build123")),
       clue(123.asRight[String])
     )
 
     assertEquals(
-      clue(parserService.parseBuildId("/build1")),
+      clue(CommandParser.parseBuildId("/build1")),
       clue(1.asRight[String])
     )
 
     assertEquals(
-      clue(parserService.parseBuildId("/build")),
+      clue(CommandParser.parseBuildId("/build")),
       clue("Failure reading:bigInt".asLeft[Int])
     )
   }
 
   test("parseQuerySpec") {
     assertEquals(
-      parserService.parseQuery("zvt zvt allin zvz"),
-      NonEmptyList.of(ZvT, ZvT, Allin, ZvZ).asRight[String]
+      CommandParser.parseQuery("zvt & zvt & allin & zvz"),
+      And(Const(ZvT),
+        And(Const(ZvT),
+          And(Const(Allin), Const(ZvZ)))).asRight[String]
     )
 
     assertEquals(
-      parserService.parseQuery(
+      CommandParser.parseQuery(
         """
-          |zvt  allin
-          |
-          |roach
+          |zvt & allin
+          |& <9
           |""".stripMargin),
-      NonEmptyList.of(ZvT, Allin, Roach).asRight[String]
+      And(Const(ZvT), And(Const(Allin), Less(9))).asRight[String]
     )
   }
 
   test("parseBuildSpec") {
     assertEquals(
-      parserService.parseBuild(rawBuild), (
+      CommandParser.parseBuild(rawBuild), (
         Build(
           matchUp = ZvT,
           duration = 6*60+12,

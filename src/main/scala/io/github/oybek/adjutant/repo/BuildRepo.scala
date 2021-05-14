@@ -1,13 +1,12 @@
 package io.github.oybek.adjutant.repo
 
-import cats.data.NonEmptySeq
 import io.github.oybek.adjutant.model.{Build, BuildType, MatchUp}
+import io.github.oybek.adjutant.service.qlang.QueryLang
 
 trait BuildRepo[DB[_]] {
-  def get(id: Int): DB[Option[Build]]
-  def get(matchUp: Option[MatchUp],
-          buildType: Option[BuildType],
-          ids: Option[NonEmptySeq[Int]]): DB[Seq[Build]]
+  def getBuildCount: DB[Int]
+  def getById(id: Int): DB[Option[Build]]
+  def getByQuery(expr: QueryLang.Expr): DB[Seq[Build]]
 
   def add(build: Build): DB[Int]
 

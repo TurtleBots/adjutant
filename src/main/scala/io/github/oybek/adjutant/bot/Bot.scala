@@ -7,7 +7,8 @@ import cats.{Parallel, ~>}
 import enumeratum.EnumEntry
 import io.github.oybek.adjutant.model.{Build, Command, Journal}
 import io.github.oybek.adjutant.repo.JournalRepo
-import io.github.oybek.adjutant.service.{BuildService, ParserService}
+import io.github.oybek.adjutant.service.build.BuildService
+import io.github.oybek.adjutant.service.qlang.{CommandParser, QueryLang}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import telegramium.bots.{Message, _}
 import telegramium.bots.high.implicits._
@@ -18,7 +19,6 @@ import scala.concurrent.duration.DurationInt
 
 class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
                                               val api: Api[F],
-                                              parserService: ParserService,
                                               journalRepo: JournalRepo[DB],
                                               buildService: BuildService[F],
                                               dbRun: DB ~> F) extends LongPollBot[F](api) {
@@ -37,19 +37,23 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
 
   private def whenText(text: String)(implicit chatId: ChatIntId, message: Message): F[Unit] =
     Seq(
-      parserService.parseAll(text).map(_ => whenGotAll),
-      parserService.parseStartOrHelp(text).map(_ => whenGotHelpAsk),
-      parserService.parseBuild(text).map { case (b, cs) => whenGotBuildOffer(b, cs) },
-      parserService.parseBuildId(text).map(whenBuildAskedById),
-      parserService.parseQuery(text).map(whenGotQuery),
-      parserService.parseVoiceBuild(text).map(whenVoiceBuild)
+      CommandParser.parseStartOrHelp(text).map(_ =>
+        for {
+          buildCount <- buildService.getBuildCount
+          _ <- whenGotHelpAsk(buildCount)
+        } yield ()
+      ),
+      CommandParser.parseBuild(text).map { case (b, cs) => whenGotBuildOffer(b, cs) },
+      CommandParser.parseBuildId(text).map(whenBuildAskedById),
+      CommandParser.parseQuery(text).map(whenGotQuery),
+      CommandParser.parseVoiceBuild(text).map(whenVoiceBuild)
     ).reduce(_ orElse _).getOrElse(sendConfused)
 
   private def whenVoiceBuild(buildId: Int)(implicit chatId: ChatIntId, message: Message): F[Unit] =
     message.replyToMessage.flatMap(_.voice).fold(
       sendText("You have to reply to voice message")
     ) { voice =>
-      buildService.getBuild(buildId).flatMap {
+      buildService.getBuildById(buildId).flatMap {
         case Some((build, _)) if build.author != chatId.id =>
           sendText("Only the author of the build can do it")
         case Some((build, _)) =>
@@ -62,27 +66,28 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
       }
     }
 
-  private def whenGotHelpAsk(implicit chatId: ChatIntId) =
+  private def whenGotHelpAsk(buildCount: Int = 0)(implicit chatId: ChatIntId) =
     sendText(
-      """Search query examples:
-        |`tvp economic`
-        |`zvt`
-        |`zvt allin roach`
-        |""".stripMargin)
+      s"""We have $buildCount builds in our database
+         |
+         |Every build has 3 properties:
+         |matchup - it is `tvp`, `tvz`, `zvt`, ...
+         |build type - `allin`, `economic`, `cheese` or `timingAttack`
+         |duration - measured in minutes
+         |
+         |You can query builds using that properties:
+         |
+         |`tvp` - choose all tvp builds
+         |
+         |`tvp & economic` - choose all tvp builds that are also economic
+         |
+         |Or more complex queries
+         |`(tvz & <6) | (tvz & !cheese & <10)` - which means choose all builds that are tvz and shorter than 6 minutes or that are tvz and not cheese builds and are shorter than 10 minutes
+         |""".stripMargin)
 
-  private def whenGotAll(implicit chatId: ChatIntId) =
+  private def whenGotQuery(query: QueryLang.Expr)(implicit chatId: ChatIntId) =
     for {
-      builds <- buildService.getBuilds(Seq.empty[EnumEntry])
-      text = builds match {
-        case Nil => "No builds in the system"
-        case bs => drawBuilds(bs)
-      }
-      _ <- sendText(text)
-    } yield ()
-
-  private def whenGotQuery(query: NonEmptyList[EnumEntry])(implicit chatId: ChatIntId) =
-    for {
-      builds <- buildService.getBuilds(query.toList)
+      builds <- buildService.getBuildsByQuery(query)
       text = builds match {
         case Nil => "No builds with such configuration"
         case bs => drawBuilds(bs)
@@ -92,7 +97,7 @@ class Bot[F[_]: Sync: Parallel: Timer, DB[_]](implicit
 
   private def whenBuildAskedById(buildId: Int)(implicit chatId: ChatIntId) =
     for {
-      buildOpt <- buildService.getBuild(buildId)
+      buildOpt <- buildService.getBuildById(buildId)
       _ <- buildOpt.traverse { case (build, _) =>
         dbRun {
           journalRepo.add(

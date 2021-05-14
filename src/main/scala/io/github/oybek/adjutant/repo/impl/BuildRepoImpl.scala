@@ -4,6 +4,8 @@ import cats.data.NonEmptySeq
 import enumeratum.SlickEnumSupport
 import io.github.oybek.adjutant.model.{Build, BuildType, MatchUp}
 import io.github.oybek.adjutant.repo.BuildRepo
+import io.github.oybek.adjutant.service.qlang.QueryLang
+import io.github.oybek.adjutant.service.qlang.QueryLang.{And, Const, Expr, Less, Not, Or}
 import slick.ast.BaseTypedType
 import slick.jdbc.PostgresProfile
 import slick.jdbc.PostgresProfile.api._
@@ -11,20 +13,21 @@ import slick.jdbc.PostgresProfile.api._
 import scala.concurrent.ExecutionContext
 
 class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRepo[DBIO] with SlickEnumSupport {
-  override def get(id: Int): DBIO[Option[Build]] =
+  override def getBuildCount: DBIO[Int] =
+    buildTable.length.result
+
+  override def getById(id: Int): DBIO[Option[Build]] =
     buildTable
       .filter(_.id === id.bind)
       .result
       .headOption
 
-  override def get(matchUpOpt: Option[MatchUp],
-                   buildTypeOpt: Option[BuildType],
-                   ids: Option[NonEmptySeq[Int]]): DBIO[Seq[Build]] =
-    buildTable
-      .filterOpt(ids)((build, ids) => build.id inSetBind ids.toSeq)
-      .filterOpt(matchUpOpt)((build, matchUp) => build.matchUp === matchUp.bind)
-      .filterOpt(buildTypeOpt)((build, buildType) => build.ttype === buildType.bind)
-      .result
+  override def getByQuery(expr: QueryLang.Expr): DBIO[Seq[Build]] = {
+    val sql =
+      buildTable.filter(table => generateSql(expr)(table)).result
+    println("xxx" + sql.statements.mkString)
+    sql
+  }
 
   override def add(build: Build): DBIO[Int] =
     buildTable.returning(buildTable.map(_.id)) += build
@@ -45,6 +48,17 @@ class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRe
       .map(_.dictationTgId)
       .update(dictationTgId)
 
+  private def generateSql(expr: Expr)(implicit buildTable: BuildTable): Rep[Boolean] =
+    expr match {
+      case Const(matchUp: MatchUp) => buildTable.matchUp === matchUp.bind
+      case Const(buildType: BuildType) => buildTable.ttype === buildType.bind
+      case Const(_) => true.bind
+      case Less(minutes) => buildTable.duration < (minutes * 60).bind
+      case Or(a, b) => generateSql(a) || generateSql(b)
+      case And(a, b) => generateSql(a) && generateSql(b)
+      case Not(expr) => !generateSql(expr)
+    }
+
   private def incInt(query: Query[Rep[Int], Int, Seq]): DBIO[Unit] =
     for {
       valueOpt <- query.result.headOption
@@ -58,7 +72,7 @@ class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRe
   //
   override val profile = PostgresProfile
 
-  private class BuildTable(tag: Tag) extends Table[Build](tag, "build") {
+  class BuildTable(tag: Tag) extends Table[Build](tag, "build") {
     def id             = column[Int]("id", O.PrimaryKey, O.AutoInc)
     def matchUp        = column[MatchUp]("matchup")
     def duration       = column[Int]("duration")
@@ -81,7 +95,7 @@ class BuildRepoImpl(implicit executionContext: ExecutionContext) extends BuildRe
       dictationTgId.?).mapTo[Build]
   }
 
-  private val buildTable = TableQuery[BuildTable]
+  val buildTable = TableQuery[BuildTable]
 
   implicit lazy val matchUpMapper: BaseTypedType[MatchUp] = mappedColumnTypeForLowercaseEnum(MatchUp)
   implicit lazy val buildTypeMapper: BaseTypedType[BuildType] = mappedColumnTypeForLowercaseEnum(BuildType)
