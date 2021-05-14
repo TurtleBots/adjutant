@@ -6,7 +6,7 @@ import cats.implicits.catsSyntaxEitherId
 import io.github.oybek.adjutant.model.{BuildType, MatchUp}
 import io.github.oybek.adjutant.service.qlang.QueryLang._
 
-object QueryLangParser extends App {
+object QueryLangParser {
   lazy val const: Parser[Const] =
     Seq(MatchUp, BuildType)
       .map(enumParser(_))
